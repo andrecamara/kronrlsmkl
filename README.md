@@ -1,2 +1,2 @@
 # kronrlsmkl
-Kronecker Regularised Least Squares with multiple kernels
+Kronecker Regularized Least Squares with multiple kernels
