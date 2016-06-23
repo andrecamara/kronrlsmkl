@@ -1,4 +1,5 @@
-function [ y2, alpha, beta ] = kronrls_mkl( K1, K2, y, lambda, regcoef, maxiter )
+% function [ y2, alpha, beta ] = kronrls_mkl( K1, K2, y, lambda, regcoef, maxiter, isinner)
+function [ A, alpha, beta ] = kronrls_mkl( K1, K2, y, lambda, regcoef, maxiter, isinner)
 %KRONRLS_MKL Summary of this function goes here
 %   INPUTS
 %    'K1' : 3 dimensional array of kernels
@@ -22,6 +23,9 @@ function [ y2, alpha, beta ] = kronrls_mkl( K1, K2, y, lambda, regcoef, maxiter 
     if ~exist('regcoef','var') || isempty(regcoef)
         regcoef = 0.2;
     end
+    if ~exist('isinner','var') || isempty(isinner)
+        isinner = 0;
+    end
     
     nA = size(K1,3); 
     nB = size(K2,3); 
@@ -32,8 +36,12 @@ function [ y2, alpha, beta ] = kronrls_mkl( K1, K2, y, lambda, regcoef, maxiter 
   
     iter = 0;
     incr = 1000;
-    limit_incr = 0.0001;
+    limit_incr = 0.0100;
     combFval = zeros(1,maxiter);
+    
+    if ~isinner
+        regcoef = optimize_regcoef(K1, K2, y);
+    end
     
     %% iterative steps: optimize weights
     while(iter < maxiter && abs(incr) > limit_incr) 
@@ -78,7 +86,9 @@ function [ y2, alpha, beta ] = kronrls_mkl( K1, K2, y, lambda, regcoef, maxiter 
             incr =  combFval(iter-1) - combFval(iter);
         end  
         
-        fprintf('ITER=%d - (fval_alpha=%.4f, fval_beta=%.4f) \n',iter, fval_alpha, fval_beta)
+        if ~isinner
+            fprintf('ITER=%d \tlambda=%.2f \tregcoef=%.1f - (fval_alpha=%.4f, fval_beta=%.4f) \n',iter, lambda, regcoef, fval_alpha, fval_beta)
+        end
     end
     
     %% Perform predictions
@@ -86,20 +96,13 @@ function [ y2, alpha, beta ] = kronrls_mkl( K1, K2, y, lambda, regcoef, maxiter 
     K2_comb = combine_kernels(beta, K2);
     
     %build final model with best weights/lambda
+    if ~isinner
+        lambda  = optimize_lambda(K1_comb, K2_comb, y);
+    end
     [A] = kronrls(K1_comb, K2_comb, y, lambda);
     
     y2 = K2_comb' * A' * K1_comb;
     y2 = y2';
-end
-
-function result = combine_kernels(weights, kernels)
-    % length of weights should be equal to length of matrices
-    n = length(weights);
-    result = zeros(size(kernels(:,:,1)));    
-    
-    for i=1:n
-        result = result + weights(i) * kernels(:,:,i);
-    end
 end
 
 function [x, fval] = optimize_weights(x0, fun)
@@ -115,7 +118,7 @@ function [x, fval] = optimize_weights(x0, fun)
     [x,fval] = fmincon(fun,x0,Aineq,bineq,Aeq,beq,LB,UB,[],options);
 end
 
-function [J] = obj_function(alpha,u,Ma,lambda,regcoef)
-    V = combine_kernels(alpha, Ma);
-    J = norm(u-V','fro')/(2*lambda*numel(V)) + regcoef*(norm(alpha,2))^2;
+function [J] = obj_function(w,u,Ma,lambda,regcoef)
+    V = combine_kernels(w, Ma);
+    J = norm(u-V','fro')/(2*lambda*numel(V)) + regcoef*(norm(w,2))^2;
 end
