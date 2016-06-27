@@ -1,4 +1,3 @@
-% function [ y2, alpha, beta ] = kronrls_mkl( K1, K2, y, lambda, regcoef, maxiter, isinner)
 function [ A, alpha, beta ] = kronrls_mkl( K1, K2, y, lambda, regcoef, maxiter, isinner)
 %KRONRLS_MKL Summary of this function goes here
 %   INPUTS
@@ -100,9 +99,7 @@ function [ A, alpha, beta ] = kronrls_mkl( K1, K2, y, lambda, regcoef, maxiter, 
         lambda  = optimize_lambda(K1_comb, K2_comb, y);
     end
     [A] = kronrls(K1_comb, K2_comb, y, lambda);
-    
-    y2 = K2_comb' * A' * K1_comb;
-    y2 = y2';
+
 end
 
 function [x, fval] = optimize_weights(x0, fun)
